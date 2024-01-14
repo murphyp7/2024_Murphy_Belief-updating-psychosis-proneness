@@ -1,0 +1,214 @@
+clear, close all
+         
+% fits4comp = {'H_noise','H_noise_B','H_noise_IU','H_noise_B_IU'};
+% fitnames =  {'H+noise', 'H+noise+B','H+noise+IU','H+noise+B+IU'};
+
+fits4comp = {'H_noise','H_noise_B'};
+fitnames =  {'Model 1', 'Model 2'};
+         
+allsubj = {'t010';'t011';'t012';'t013';'t014';'t015';'t016';'t017';'t018';'t019';...
+           't020';'t021';'t024';'t025';'t026';'t027';'t028';'t029';...
+           't030';'t031';'t032';'t033';'t034';'t035';'t036';'t037';'t038';'t039';...
+           't040';'t041';'t043';'t044';'t045';'t047';'t048';'t049';...
+           't050';'t051';'t052';'t053';'t054';'t055';'t056';'t057';'t058';'t059';...
+           't060';'t061';'t062';'t063';'t064';'t065';'t066';'t067';'t068';'t069';...
+           't070';'t071';'t072';'t073';'t074';'t075';'t076';'t078';'t079';...
+           't080';'t081';'t082';'t083';'t084';'t085';'t086';'t087';'t088';...
+           't090';'t091';'t092';'t093';'t094';'t095';'t096';'t097';'t098';'t099';...
+           't100';'t101';'t102';'t103';'t104';'t105'};
+% Bad participants that are currently excluded: t022, t023, t042, t046
+% Following participants with no CAPE scores excluded: t077, t089
+
+loadpath = '/mnt/homes/home024/pmurphy/Surprise_scz/modelling/';
+behavpath = '/mnt/homes/home028/gmonov/SCZ/Data/decision_making/';
+
+addpath '/mnt/homes/home024/pmurphy/Surprise_scz/questionnaires/';
+addpath '/mnt/homes/home024/pmurphy/Surprise_accumulation/Analysis/Gen_fun';
+
+% Pulling nObs
+for subj = 1:length(allsubj)
+    fsess = dir([behavpath,allsubj{subj},filesep]);
+    choices=[];
+    for s = 1:length(fsess)-2
+        fblock = dir([behavpath,allsubj{subj},filesep,fsess(s+2).name,filesep,'Behaviour',filesep,'*.mat']);
+        fsmp = dir([behavpath,allsubj{subj},filesep,fsess(s+2).name,filesep,'Sample_seqs',filesep,'*.mat']);
+        for b = 1:length(fblock)
+            load([fblock(b).folder,filesep,fblock(b).name])
+            load([fsmp(b).folder,filesep,fsmp(b).name])
+            
+            Cchoices = Behav(:,2)-1;
+            choices = [choices; Cchoices(Cchoices==0 | Cchoices==1)];
+        end
+    end
+    FnObs(subj,1) = length(choices);
+end
+
+% Compute BICs
+GA_BIC=[];
+for f = 1:length(fits4comp)
+    for subj = 1:length(allsubj)
+        % Load model fit & compute BIC
+        load([loadpath,fits4comp{f},filesep,'fits',filesep,allsubj{subj},'_fit.mat'])
+        GA_BIC(subj,f) = log(FnObs(subj))*length(pm_fit)-(2*-err);  % err is the cross-entropy, which is equivalent to the negative log-likelihood
+    end
+end
+
+
+% Plot BICs relative to winning model
+exclude_subj = [];
+include = 1:length(allsubj); include(exclude_subj)=[];
+
+mw = find(mean(GA_BIC(include,:),1)==min(mean(GA_BIC(include,:),1)));
+BICrel = GA_BIC(include,:)-repmat(GA_BIC(include,mw),1,size(GA_BIC,2));
+
+figure, hold on
+barw = 0.3; ylims = [-100 700];
+for c = 1:size(BICrel,2)
+    f=fill([c-barw/2 c-barw/2 c+barw/2 c+barw/2],[0 mean(BICrel(:,c)) mean(BICrel(:,c)) 0],[0.6 0.6 0.6]); set(f,'EdgeColor',[0.6 0.6 0.6])
+end
+
+plot(1:size(BICrel,2),mean(BICrel,1),'Color',[0.2 0.2 0.2],'LineWidth',3.5)
+for s = 1:size(BICrel,1)
+    plot(1:size(BICrel,2),BICrel(s,:),'Color',[0.7 0.7 0.7],'LineWidth',0.75)
+end
+for c = 1:size(BICrel,2)
+    sc1=scatter(ones(size(BICrel,1),1).*c,BICrel(:,c),40,repmat([0.5 0.5 0.5],size(BICrel,1),1)); set(sc1,'MarkerFaceColor',[1 1 1])
+end
+plot([0 size(BICrel,2)+1],[0 0],'k--','LineWidth',1)
+xlim([0.5 size(BICrel,2)+0.5]), ylim([-15 55])
+% set(gca,'XTick',[1:size(BICrel,2)],'XTickLabel',fits4comp,'TickDir','out','FontSize',10,'FontName','Arial')
+set(gca,'XTick',[1:size(BICrel,2)],'XTickLabel',fitnames,'XTickLabelRotation',45,'TickDir','out','FontName','Arial')
+ylabel('\Delta BIC relative to winning model'), title('BIC')
+
+
+% Run pairwise comparisons and plot
+nperm=10000;
+BICsig=nan(length(fits4comp));
+e = triu(BICsig,-0);
+disp('Running pairwise comparisons...')
+for c1 = 1:length(fits4comp)
+    for c2 = 1:length(fits4comp)
+        if e(c1,c2)==0
+            [BICsig(c1,c2)]=mult_comp_perm_t1(GA_BIC(include,c1)-GA_BIC(include,c2),nperm);
+        end
+    end
+end
+
+cmap = [[linspace(1,1,2)' linspace(1,1,2)' linspace(1,0,2)'];
+        [linspace(1,1,200)' linspace(1,0,200)' linspace(0,0,200)']];
+axlw=0.5; fs=7;
+
+figure, hold on
+imagesc(1:length(fits4comp),1:length(fits4comp),-log(BICsig(1:length(fits4comp),1:length(fits4comp))),-log([0.05 0.001])),
+xlim([0.5 length(fits4comp)+0.5]), ylim([0.5 length(fits4comp)+0.5]), colormap(cmap)
+set(gca,'FontName','Arial','LineWidth',axlw,'FontSize',fs,'TickDir','out','box','off','ydir','normal','XTick',[1:length(fits4comp)],...
+    'XTickLabel',fitnames,'YTick',[1:length(fits4comp)],'YTickLabel',fitnames,'XTickLabelRotation',45),
+cb=colorbar('EastOutside'); ylabel(cb,'p'), title('BIC')
+set(cb,'Ticks',-log([0.05 0.01 0.001]),'TickLabels',[0.05 0.01 0.001])
+
+
+% Plot fitted parameters from best-fitting model
+bestm = 'H_noise';
+
+H=[]; noise=[]; B=[]; IU=[];
+for subj = 1:length(allsubj)
+    % Load model fit & compute BIC
+    load([loadpath,bestm,filesep,'fits',filesep,allsubj{subj},'_fit.mat'])
+    H(subj,1) = pm_fit(1);
+    noise(subj,1) = pm_fit(2);
+    % B(subj,1) = pm_fit(3);
+    % IU(subj,1) = pm_fit(3);
+end
+
+[Hsig]=mult_comp_perm_t1(H-0.1,nperm)
+% [Bsig]=mult_comp_perm_t1(B-1,nperm)
+% [IUsig]=mult_comp_perm_t1(IU-1,nperm)
+
+figure,
+
+jitbnd = [-0.3 0.3];
+scatsize = 9;
+colsF = [0.3 0.3 1];
+
+subplot(1,4,1), hold on
+plot([1 1]+jitbnd, [0.1 0.1],'LineWidth',2,'Color',colsF(1,:),'LineStyle','--')
+rnds = dist_scatters(H,0.01);  % get x jitters
+S=scatter(ones(size(H,1),1) + diff(jitbnd).*rnds + jitbnd(1),H,scatsize,'k','o');
+set(S,'MarkerFaceColor',[1 1 1],'MarkerEdgeColor',colsF(1,:))
+set(gca,'FontName','Arial','LineWidth',axlw,'FontSize',fs,'TickDir','out','box','off','ydir','normal','XTick',[])
+ylabel('H'), xlim([0.5 1.5])
+
+subplot(1,4,2), hold on
+rnds = dist_scatters(noise,0.3);  % get x jitters
+S=scatter(ones(size(noise,1),1) + diff(jitbnd).*rnds + jitbnd(1),noise,scatsize,'k','o');
+set(S,'MarkerFaceColor',[1 1 1],'MarkerEdgeColor',colsF(1,:))
+set(gca,'FontName','Arial','LineWidth',axlw,'FontSize',fs,'TickDir','out','box','off','ydir','normal','XTick',[])
+ylabel('noise'), xlim([0.5 1.5])
+
+% subplot(1,4,3), hold on
+% plot([1 1]+jitbnd, [1 1],'LineWidth',2,'Color',colsF(1,:),'LineStyle','--')
+% rnds = dist_scatters(IU,0.05);  % get x jitters
+% S=scatter(ones(size(IU,1),1) + diff(jitbnd).*rnds + jitbnd(1),IU,scatsize,'k','o');
+% set(S,'MarkerFaceColor',[1 1 1],'MarkerEdgeColor',colsF(1,:))
+% set(gca,'FontName','Arial','LineWidth',axlw,'FontSize',fs,'TickDir','out','box','off','ydir','normal','XTick',[])
+% ylabel('IU'), xlim([0.5 1.5])
+
+% subplot(1,4,4), hold on
+% plot([1 1]+jitbnd, [1 1],'LineWidth',2,'Color',colsF(1,:),'LineStyle','--')
+% rnds = dist_scatters(B,0.2);  % get x jitters
+% S=scatter(ones(size(B,1),1) + diff(jitbnd).*rnds + jitbnd(1),B,scatsize,'k','o');
+% set(S,'MarkerFaceColor',[1 1 1],'MarkerEdgeColor',colsF(1,:))
+% set(gca,'FontName','Arial','LineWidth',axlw,'FontSize',fs,'TickDir','out','box','off','ydir','normal','XTick',[])
+% ylabel('B'), xlim([0.5 1.5])
+
+
+% Plot scatterplots of parameters
+figure,
+[~,ax] = plotmatrix([H noise IU]);
+ax(1,1).Title.String='H';
+ax(1,2).Title.String='noise';
+ax(1,3).Title.String='IU';
+
+[rhoP,pP]=corr([H noise IU],'type','spearman','rows','pairwise');
+
+
+% Correlate with CAPE scores
+[CAPE,names] = get_CAPE_new(allsubj);
+
+figure
+sp=1;
+for s = 1:length(names)
+    subplot(length(names),3,sp), hold on
+    [rho,p]=corr(log(H./(1-H)),CAPE(:,s),'type','spearman','rows','pairwise');
+    scatter(log(H./(1-H)),CAPE(:,s),scatsize), xlabel('H'), ylabel(names{s})
+    title(['rho=',num2str(round(rho,3)),', p=',num2str(round(p,4))])
+    sp=sp+1;
+    
+    subplot(length(names),3,sp), hold on
+    [rho,p]=corr(noise,CAPE(:,s),'type','spearman','rows','pairwise');
+    scatter(noise,CAPE(:,s),scatsize), xlabel('noise'), ylabel(names{s})
+    title(['rho=',num2str(round(rho,3)),', p=',num2str(round(p,4))])
+    sp=sp+1;
+    
+    subplot(length(names),3,sp), hold on
+    [rho,p]=corr(IU,CAPE(:,s),'type','spearman','rows','pairwise');
+    scatter(IU,CAPE(:,s),scatsize), xlabel('IU'), ylabel(names{s})
+    title(['rho=',num2str(round(rho,3)),', p=',num2str(round(p,4))])
+    sp=sp+1;
+end
+
+
+% Single plot of model 1 vs model 2
+figure, hold on
+plot([0.5 1.5],[0 0],'LineWidth',0.75,'Color',[0.7 0.7 0.7],'LineStyle','--')
+rnds = dist_scatters(GA_BIC(include,2)-GA_BIC(include,1),0.2);  % get x jitters
+S=scatter(ones(length(include),1).*1 + diff(jitbnd).*rnds + jitbnd(1),GA_BIC(include,2)-GA_BIC(include,1),scatsize,'k','o');
+set(S,'MarkerFaceColor',[1 1 1],'MarkerEdgeColor',[0 0 0])
+plot(jitbnd+1,[mean(GA_BIC(include,2)-GA_BIC(include,1)) mean(GA_BIC(include,2)-GA_BIC(include,1))],'LineWidth',2,'Color',[0 0 0])
+
+p = BICsig(2,1);
+text(0.75,-20,['p=',num2str(round(p,4))],'FontSize',7)
+
+set(gca,'FontName','Helvetica','FontSize',fs,'LineWidth',axlw,'TickDir','out','box','off','XTick',[])
+ylabel('Delta BIC, Model 2-Model 1'), xlim([0.5 1.5])
+

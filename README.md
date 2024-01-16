@@ -1,7 +1,7 @@
 ## 2024_Murphy_Belief-updating-psychosis-proneness
 Analysis and task code for
 
-**Murphy PR, Krkovic K, Monov G, Kudlek N, Lincoln, T & Donner TH (2024).** [**Individual differences in belief updating and phasic arousal are related to osychosis proneness.**](insert link here) ***bioRxiv*.**
+**Murphy PR, Krkovic K, Monov G, Kudlek N, Lincoln, T & Donner TH (2024).** [**Individual differences in belief updating and phasic arousal are related to psychosis proneness.**](https://www.biorxiv.org/content/10.1101/2024.01.14.575567v1) ***bioRxiv*.**
 
 Raw behavioural and eye-tracking data to accompany this code will be made available upon publication.
 

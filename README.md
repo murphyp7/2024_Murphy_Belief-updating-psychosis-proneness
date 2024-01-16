@@ -11,7 +11,7 @@ Further detail on analysis and task scripts is provided below. For questions, co
 
 ### behaviour:
 Scripts for analysing behavioural data from change-point decision-making task and delayed match-to-sample working memory task. Main script for analysis of decision-making is `analyse_dm.m`, which computes choice accuracies, psychophysical kernels and other key measures, assesses their relationships to scores from the CAPE questionnaire, and creates a variety of figures including many that feature as figure panels in the manuscript. `analyse_wm.m` computes average response accuracy on the working memory task and assesses its relationship to scores from the CAPE questionnaire.
-### modelling
+### modelling:
 Scripts for fitting a variety of model variants to choice data from the decision-making task. Code for each distinct model variant is contained in individual subdirectories.
 -	Models are fit via particle swarm optimization ([Birge, 2003, *IEEE Swarm Intelligence Symposium*](https://ieeexplore.ieee.org/document/1202265); [code here](https://www.mathworks.com/matlabcentral/fileexchange/7506-particle-swarm-optimization-toolbox)), with very slightly adapted version of code included here in the `particle_swarm_Glaze` subdirectory (changes are commented with `%%% PM` and made code work with global variables passed from higher-level scripts).
 -	`model_comp.m`: compares goodness of fit of different model variants.
